@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APPLES</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(45deg, #1d2b64, #f8cdda);
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+    canvas {
+      border: 2px solid white;
+      background: #222;
+    }
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 20px;
+      font-weight: bold;
+      color: yellow;
+      text-shadow: 2px 2px 4px black;
+    }
+    #pauseText {
+      position: absolute;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 16px;
+      color: white;
+      text-shadow: 1px 1px 3px black;
+    }
+    #settings {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 20px;
+      cursor: pointer;
+      color: yellow;
+    }
+    .gradient-menu {
+      display: none;
+      position: absolute;
+      top: 50px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 10px;
+      border: 1px solid white;
+      color: white;
+      font-size: 16px;
+    }
+    .gradient-menu div {
+      margin: 5px 0;
+      cursor: pointer;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="score">Score: 0</div>
+  <div id="pauseText">PRESS X TO PAUSE</div>
+  <div id="settings">⚙️</div>
+  <div class="gradient-menu" id="gradientMenu">
+    <div data-gradient="linear-gradient(45deg, #ff0000, #ff9900)">Red to Orange</div>
+    <div data-gradient="linear-gradient(45deg, #0000ff, #00ff00)">Blue to Green</div>
+    <div data-gradient="linear-gradient(45deg, #ffff00, #00ff00)">Yellow to Green</div>
+  </div>
+  <canvas id="gameCanvas" width="800" height="800"></canvas> <!-- Adjusted size -->
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreDisplay = document.getElementById("score");
+    const pauseText = document.getElementById("pauseText");
+    const settingsButton = document.getElementById("settings");
+    const gradientMenu = document.getElementById("gradientMenu");
+
+    const gridSize = 40; // Adjusted grid size for proportional scaling
+    let snake = [{ x: 10, y: 10 }];
+    let direction = { x: 1, y: 0 }; // Start moving right by default
+    let score = 0;
+    let paused = false; // Pause state
+
+    const fruits = [
+      { type: "apple", points: 1, image: "https://art.pixilart.com/sr5z429737545aaws3.png" },
+      { type: "banana", points: 5, image: "https://art.pixilart.com/sr5zc710fb1c60aws3.png" },
+      { type: "blueberry", points: 10, image: "https://art.pixilart.com/sr5z451f3838caaws3.png" },
+    ];
+
+    let foodItems = generateFruits();
+
+    const snakeHeadImage = new Image();
+    snakeHeadImage.src = "https://art.pixilart.com/sr5zf96127410eaws3.png";
+
+    settingsButton.addEventListener("click", () => {
+      gradientMenu.style.display = gradientMenu.style.display === "block" ? "none" : "block";
+    });
+
+    gradientMenu.addEventListener("click", (event) => {
+      if (event.target.dataset.gradient) {
+        document.body.style.background = event.target.dataset.gradient;
+        gradientMenu.style.display = "none";
+      }
+    });
+
+    function generateFruits() {
+      const fruitPositions = new Set();
+      return fruits.map(fruit => {
+        let x, y;
+        do {
+          x = Math.floor(Math.random() * (canvas.width / gridSize));
+          y = Math.floor(Math.random() * (canvas.height / gridSize));
+        } while (fruitPositions.has(`${x},${y}`));
+        fruitPositions.add(`${x},${y}`);
+        return { ...fruit, x, y };
+      });
+    }
+
+    function resetGame() {
+      snake = [{ x: 10, y: 10 }];
+      direction = { x: 1, y: 0 }; // Reset direction to right
+      score = 0;
+      scoreDisplay.textContent = "Score: 0";
+      foodItems = generateFruits(); // Reset fruits for the new round
+      paused = false;
+    }
+
+    function gameLoop() {
+      if (!paused) {
+        update();
+        draw();
+      }
+    }
+
+    function update() {
+      const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+
+      foodItems.forEach((food, index) => {
+        if (head.x === food.x && head.y === food.y) {
+          score += food.points;
+          scoreDisplay.textContent = `Score: ${score}`;
+
+          for (let i = 0; i < food.points; i++) {
+            snake.push({ ...snake[snake.length - 1] });
+          }
+
+          foodItems[index] = {
+            ...food,
+            x: Math.floor(Math.random() * (canvas.width / gridSize)),
+            y: Math.floor(Math.random() * (canvas.height / gridSize))
+          };
+        }
+      });
+
+      if (
+        head.x < 0 || head.y < 0 ||
+        head.x >= canvas.width / gridSize || head.y >= canvas.height / gridSize ||
+        snake.some((segment, index) => index !== 0 && segment.x === head.x && segment.y === head.y)
+      ) {
+        alert("Game Over! Your score: " + score);
+        resetGame();
+        return;
+      }
+
+      snake.unshift(head);
+      if (!foodItems.some(food => head.x === food.x && head.y === food.y)) snake.pop();
+    }
+
+    function draw() {
+      ctx.fillStyle = "#222";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      snake.forEach((segment, index) => {
+        if (index === 0) {
+          ctx.drawImage(
+            snakeHeadImage,
+            segment.x * gridSize,
+            segment.y * gridSize,
+            gridSize,
+            gridSize
+          );
+        } else {
+          ctx.fillStyle = "lime";
+          ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
+        }
+      });
+
+      foodItems.forEach(food => {
+        const img = new Image();
+        img.src = food.image;
+        ctx.drawImage(img, food.x * gridSize, food.y * gridSize, gridSize, gridSize);
+      });
+    }
+
+    document.addEventListener("keydown", (event) => {
+      const keyMap = {
+        ArrowUp: { x: 0, y: -1 },
+        ArrowDown: { x: 0, y: 1 },
+        ArrowLeft: { x: -1, y: 0 },
+        ArrowRight: { x: 1, y: 0 },
+        w: { x: 0, y: -1 }, // W key for up
+        s: { x: 0, y: 1 },  // S key for down
+        a: { x: -1, y: 0 }, // A key for left
+        d: { x: 1, y: 0 },  // D key for right
+      };
+
+      const key = event.key.toLowerCase(); // Normalize key to lowercase for WASD
+
+      if (keyMap[key] && (snake.length === 1 || !(direction.x === -keyMap[key].x && direction.y === -keyMap[key].y))) {
+        direction = keyMap[key];
+      }
+
+      if (event.key === "x" || event.key === "X") {
+        paused = !paused;
+        pauseText.textContent = paused ? "GAME PAUSED (PRESS X TO RESUME)" : "PRESS X TO PAUSE";
+      }
+    });
+
+    setInterval(gameLoop, 100);
+  </script>
+</body>
+</html>
